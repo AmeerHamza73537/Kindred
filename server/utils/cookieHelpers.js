@@ -20,19 +20,21 @@ export const getRefreshFromRequest = (req) => {
   return cookies.refreshToken || null;
 };
 
+const isProd = process.env.NODE_ENV === 'production';
+
 export const cookieAccessOptions = () => ({
   httpOnly: true,
   maxAge: 15 * 60 * 1000,
   sameSite: isProd ? 'none' : 'lax',
-  secure: process.env.NODE_ENV === 'production',
+  secure: isProd,
   path: '/',
 });
 
 export const cookieRefreshOptions = () => ({
   httpOnly: true,
   maxAge: 7 * 24 * 60 * 60 * 1000,
-  sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production',
+  sameSite: isProd ? 'none' : 'lax',
+  secure: isProd,
   path: '/',
 });
 

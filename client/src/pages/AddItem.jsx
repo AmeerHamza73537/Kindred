@@ -18,7 +18,11 @@ const schema = yup.object({
     .transform((v, orig) => (orig === '' || orig == null ? undefined : Number(orig)))
     .min(1)
     .max(60)
-    .required(),
+    .when('type', {
+      is: (t) => t === 'gift',
+      then: (s) => s.notRequired().nullable(),
+      otherwise: (s) => s.required(),
+    }),
   condition: yup.string().oneOf(['new', 'good', 'fair']).required(),
 });
 
@@ -32,11 +36,14 @@ export default function AddItem() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(schema),
     defaultValues: { borrowDurationDays: 7, condition: 'good', category: 'Tools', type: 'lend' },
   });
+
+  const selectedType = watch('type');
 
   const onSubmit = async (values) => {
     const fd = new FormData();
@@ -96,9 +103,13 @@ export default function AddItem() {
             <label className="text-xs font-semibold uppercase tracking-wide text-ink/50">Borrow days</label>
             <input
               type="number"
-              className="mt-1 w-full rounded-xl border border-ink/10 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-ink/10 px-3 py-2 text-sm disabled:opacity-40 disabled:cursor-not-allowed"
+              disabled={selectedType === 'gift'}
               {...register('borrowDurationDays')}
             />
+            {selectedType === 'gift' && (
+              <p className="mt-1 text-xs text-ink/40">Not applicable for gifts</p>
+            )}
           </div>
           <div>
             <label className="text-xs font-semibold uppercase tracking-wide text-ink/50">Condition</label>

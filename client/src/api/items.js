@@ -6,9 +6,9 @@ export const listByOwner = (ownerId, params) =>
   api.get('/items', { params: { ...params, owner: ownerId } });
 export const getItem = (id) => api.get(`/items/${id}`);
 export const createItem = (formData) =>
-  api.post('/items', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  api.post('/items', formData, { headers: { 'Content-Type': undefined } });
 export const updateItem = (id, formData) =>
-  api.put(`/items/${id}`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+  api.put(`/items/${id}`, formData, { headers: { 'Content-Type': undefined } });
 export const deleteItem = (id) => api.delete(`/items/${id}`);
 export const patchItemStatus = (id, status) => api.patch(`/items/${id}/status`, { status });
 export const getAvailability = (id) => api.get(`/items/${id}/availability`);

@@ -23,8 +23,12 @@ async function uploadImagesIfConfigured(files = []) {
   if (!hasCreds || !files.length) return [];
   const urls = [];
   for (const f of files) {
-    const r = await streamUpload(f.buffer, 'kindred/items');
-    urls.push(r.secure_url);
+    try {
+      const r = await streamUpload(f.buffer, 'kindred/items');
+      urls.push(r.secure_url);
+    } catch (err) {
+      console.error('Cloudinary upload failed for one file:', err.message);
+    }
   }
   return urls;
 }

@@ -137,6 +137,11 @@ export const uploadAvatarFile = async (buffer) => {
   if (!hasCreds) {
     return '';
   }
-  const result = await streamUpload(buffer, 'kindred/avatars');
-  return result.secure_url;
+  try {
+    const result = await streamUpload(buffer, 'kindred/avatars');
+    return result.secure_url;
+  } catch (err) {
+    console.error('Cloudinary avatar upload failed:', err.message);
+    return '';
+  }
 };

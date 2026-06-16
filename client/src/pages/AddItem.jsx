@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { createItem } from '../api/items.js';
 import Button from '../components/common/Button.jsx';
 import { useGeoLocation } from '../hooks/useLocation.js';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 const schema = yup.object({
   title: yup.string().required(),
@@ -28,6 +28,7 @@ const schema = yup.object({
 
 export default function AddItem() {
   const navigate = useNavigate();
+  const imagesRef = useRef(null);
   const { coords, detect } = useGeoLocation();
   useEffect(() => {
     detect();
@@ -52,7 +53,7 @@ export default function AddItem() {
       fd.append('lat', String(coords.lat));
       fd.append('lng', String(coords.lng));
     }
-    const files = document.getElementById('images-input')?.files;
+    const files = imagesRef.current?.files;
     if (files?.length) {
       for (const f of files) fd.append('images', f);
     }
@@ -122,7 +123,7 @@ export default function AddItem() {
         </div>
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide text-ink/50">Photos</label>
-          <input id="images-input" type="file" multiple className="mt-1 w-full text-sm" accept="image/*" />
+          <input ref={imagesRef} type="file" multiple className="mt-1 w-full text-sm" accept="image/*" />
         </div>
         <Button type="submit" className="w-full" disabled={isSubmitting}>
           {isSubmitting ? 'Publishing…' : 'Publish listing'}

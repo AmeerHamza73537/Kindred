@@ -20,7 +20,11 @@ async function uploadImagesIfConfigured(files = []) {
   const hasCreds =
     process.env.CLOUDINARY_CLOUD_NAME &&
     !String(process.env.CLOUDINARY_CLOUD_NAME).includes('your_cloudinary');
-  if (!hasCreds || !files.length) return [];
+  if (!hasCreds || !files.length) {
+    if (files.length) console.warn('Cloudinary not configured — skipping image upload');
+    return [];
+  }
+  console.log(`Uploading ${files.length} image(s) to Cloudinary (cloud: ${process.env.CLOUDINARY_CLOUD_NAME})`);
   const urls = [];
   for (const f of files) {
     try {

@@ -23,7 +23,7 @@ export const getRefreshFromRequest = (req) => {
 export const cookieAccessOptions = () => ({
   httpOnly: true,
   maxAge: 15 * 60 * 1000,
-  sameSite: 'lax',
+  sameSite: isProd ? 'none' : 'lax',
   secure: process.env.NODE_ENV === 'production',
   path: '/',
 });

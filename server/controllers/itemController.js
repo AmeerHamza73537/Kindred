@@ -116,6 +116,7 @@ export const createItem = async (req, res, next) => {
       tags,
       lat,
       lng,
+      address,
     } = req.body;
 
     const coords =
@@ -133,6 +134,7 @@ export const createItem = async (req, res, next) => {
       type,
       images: imageUrls,
       location: { type: 'Point', coordinates: coords },
+      address: address || '',
       borrowDurationDays: Number(borrowDurationDays) || 7,
       condition: condition || 'good',
       tags: (() => {
@@ -175,13 +177,14 @@ export const updateItem = async (req, res, next) => {
     if (!item || String(item.owner) !== String(req.user._id)) {
       return res.status(404).json({ success: false, message: 'Not found or forbidden', data: null });
     }
-    const { title, description, category, type, borrowDurationDays, condition, tags, lat, lng } = req.body;
+    const { title, description, category, type, borrowDurationDays, condition, tags, lat, lng, address } = req.body;
     if (title) item.title = title;
     if (description !== undefined) item.description = description;
     if (category) item.category = category;
     if (type) item.type = type;
     if (borrowDurationDays) item.borrowDurationDays = Number(borrowDurationDays);
     if (condition) item.condition = condition;
+    if (address !== undefined) item.address = address;
     if (tags) {
       try {
         item.tags = Array.isArray(tags) ? tags : JSON.parse(tags);

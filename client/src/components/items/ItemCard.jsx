@@ -46,6 +46,15 @@ export default function ItemCard({ item }) {
           </div>
           {owner && <Avatar user={owner} size={36} />}
         </div>
+        {item.address && (
+          <p className="flex items-start gap-1 text-sm text-ink/60">
+            <svg className="mt-0.5 h-3.5 w-3.5 flex-none text-ink/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+            <span className="line-clamp-1">{item.address}</span>
+          </p>
+        )}
         {item.distanceMiles != null && (
           <p className="text-sm text-ink/60">{item.distanceMiles} mi away</p>
         )}

@@ -28,6 +28,7 @@ const itemSchema = new mongoose.Schema(
       type: { type: String, enum: ['Point'], default: 'Point' },
       coordinates: { type: [Number], required: true },
     },
+    address: { type: String, default: '' },
     borrowDurationDays: { type: Number, default: 7 },
     condition: { type: String, enum: ['new', 'good', 'fair'], default: 'good' },
     tags: [{ type: String }],

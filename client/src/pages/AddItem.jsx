@@ -6,11 +6,13 @@ import toast from 'react-hot-toast';
 import { createItem } from '../api/items.js';
 import Button from '../components/common/Button.jsx';
 import { useGeoLocation } from '../hooks/useLocation.js';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import LocationPicker from '../components/items/LocationPicker.jsx';
 
 const schema = yup.object({
   title: yup.string().required(),
   description: yup.string(),
+  address: yup.string().required('Add a pickup address or note'),
   category: yup.string().required(),
   type: yup.string().oneOf(['lend', 'gift', 'skill']).required(),
   borrowDurationDays: yup
@@ -30,9 +32,22 @@ export default function AddItem() {
   const navigate = useNavigate();
   const imagesRef = useRef(null);
   const { coords, detect } = useGeoLocation();
+  const [pickup, setPickup] = useState(null);
+  const pickupTouched = useRef(false);
+
   useEffect(() => {
     detect();
   }, [detect]);
+
+  // Seed the picker with the detected GPS location, until the user moves the pin.
+  useEffect(() => {
+    if (coords && !pickupTouched.current) setPickup(coords);
+  }, [coords]);
+
+  const onPickupChange = (c) => {
+    pickupTouched.current = true;
+    setPickup(c);
+  };
 
   const {
     register,
@@ -47,12 +62,15 @@ export default function AddItem() {
   const selectedType = watch('type');
 
   const onSubmit = async (values) => {
+    const loc = pickup || coords;
+    if (!loc) {
+      toast.error('Set a pickup location on the map');
+      return;
+    }
     const fd = new FormData();
     Object.entries(values).forEach(([k, v]) => fd.append(k, v));
-    if (coords) {
-      fd.append('lat', String(coords.lat));
-      fd.append('lng', String(coords.lng));
-    }
+    fd.append('lat', String(loc.lat));
+    fd.append('lng', String(loc.lng));
     const files = imagesRef.current?.files;
     if (files?.length) {
       for (const f of files) fd.append('images', f);
@@ -120,6 +138,22 @@ export default function AddItem() {
               <option value="fair">Fair</option>
             </select>
           </div>
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase tracking-wide text-ink/50">Pickup address</label>
+          <input
+            className="mt-1 w-full rounded-xl border border-ink/10 px-3 py-2 text-sm"
+            placeholder="e.g. Blue gate, 12 Park Ave, Apt 4B"
+            {...register('address')}
+          />
+          {errors.address && <p className="text-xs text-red-600">{errors.address.message}</p>}
+        </div>
+        <div>
+          <label className="text-xs font-semibold uppercase tracking-wide text-ink/50">
+            Pin the pickup spot
+          </label>
+          <p className="mb-2 text-xs text-ink/50">Tap the map or drag the pin to the exact spot.</p>
+          <LocationPicker value={pickup} onChange={onPickupChange} />
         </div>
         <div>
           <label className="text-xs font-semibold uppercase tracking-wide text-ink/50">Photos</label>

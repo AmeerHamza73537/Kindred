@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import '../utils/leafletIcon.js';
 import { getItem, getAvailability, postAvailability } from '../api/items.js';
 import { createRequest } from '../api/requests.js';
 import { useAuth } from '../hooks/useAuth.js';
@@ -105,6 +107,17 @@ export default function ItemDetail() {
 
   const imgs = item.images?.length ? item.images : [];
 
+  const c = item.location?.coordinates;
+  const coords = c?.length === 2 ? [c[1], c[0]] : null;
+  const token = import.meta.env.VITE_MAPBOX_TOKEN;
+  const useMapbox = token && !token.includes('your_mapbox');
+  const tileUrl = useMapbox
+    ? `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/512/{z}/{x}/{y}@2x?access_token=${token}`
+    : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+  const tileOpts = useMapbox
+    ? { tileSize: 512, zoomOffset: -1, attribution: '&copy; Mapbox &copy; OpenStreetMap' }
+    : { attribution: '&copy; OpenStreetMap' };
+
   return (
     <div className="grid gap-8 lg:grid-cols-3">
       <div className="space-y-4 lg:col-span-2">
@@ -141,6 +154,29 @@ export default function ItemDetail() {
           </p>
           <p className="mt-4 text-ink/80">{item.description}</p>
         </div>
+
+        {coords && (
+          <div className="overflow-hidden rounded-3xl border border-ink/5 bg-white shadow-sm">
+            <div className="flex items-start gap-2 p-5 pb-3">
+              <svg className="mt-0.5 h-5 w-5 flex-none text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1118 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-ink/50">Pickup location</p>
+                <p className="text-sm text-ink/80">{item.address || 'Approximate area shown on the map'}</p>
+              </div>
+            </div>
+            <div className="h-64 w-full">
+              <MapContainer center={coords} zoom={15} className="h-full w-full" scrollWheelZoom={false}>
+                <TileLayer url={tileUrl} {...tileOpts} />
+                <Marker position={coords}>
+                  <Popup>{item.address || item.title}</Popup>
+                </Marker>
+              </MapContainer>
+            </div>
+          </div>
+        )}
 
         <AvailabilityCalendar
           availability={availability}

@@ -30,45 +30,49 @@ async function refreshRecipientRating(userId) {
 export const createReview = async (req, res, next) => {
   try {
     const { requestId, toUserId, rating, comment, isPublic } = req.body;
+    const uid = String(req.user._id);
     const stars = Number(rating);
     if (!Number.isInteger(stars) || stars < 1 || stars > 5) {
       return res.status(400).json({ success: false, message: 'Rating must be 1–5', data: null });
     }
-
-    const request = await Request.findById(requestId);
-    if (!request || request.status !== 'completed') {
-      return res.status(400).json({ success: false, message: 'Request must be completed', data: null });
-    }
-
-    const uid = String(req.user._id);
-    if (![String(request.borrower), String(request.owner)].includes(uid)) {
-      return res.status(403).json({ success: false, message: 'Forbidden', data: null });
-    }
-    if (![String(request.borrower), String(request.owner)].includes(String(toUserId))) {
-      return res.status(400).json({ success: false, message: 'Invalid recipient', data: null });
+    if (!toUserId) {
+      return res.status(400).json({ success: false, message: 'Recipient required', data: null });
     }
     if (String(toUserId) === uid) {
       return res.status(400).json({ success: false, message: 'Cannot review yourself', data: null });
     }
-
-    const existing = await Review.findOne({ request: requestId, fromUser: req.user._id });
-    if (existing) {
-      return res.status(400).json({ success: false, message: 'You already reviewed this exchange', data: null });
+    const target = await User.findById(toUserId);
+    if (!target) {
+      return res.status(404).json({ success: false, message: 'User not found', data: null });
     }
 
-    const review = await Review.create({
-      request: requestId,
+    const review = {
       fromUser: req.user._id,
       toUser: toUserId,
-      item: request.item,
       rating: stars,
       comment: (comment || '').trim(),
       isPublic: isPublic !== false,
-    });
+    };
 
+    // Optionally link to a completed exchange if a valid one was supplied.
+    if (requestId) {
+      const request = await Request.findById(requestId);
+      const parties = request && [String(request.borrower), String(request.owner)];
+      if (request && request.status === 'completed' && parties.includes(uid) && parties.includes(String(toUserId))) {
+        review.request = request._id;
+        review.item = request.item;
+      }
+    }
+
+    const existing = await Review.findOne({ fromUser: req.user._id, toUser: toUserId });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'You already reviewed this neighbor', data: null });
+    }
+
+    const created = await Review.create(review);
     await refreshRecipientRating(toUserId);
 
-    const populated = await Review.findById(review._id)
+    const populated = await Review.findById(created._id)
       .populate('fromUser', 'name avatar')
       .populate('item', 'title');
 

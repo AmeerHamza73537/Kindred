@@ -9,6 +9,7 @@ import { assertAuthConfig } from './utils/generateToken.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 import { registerSocketHandlers } from './socket/socketHandler.js';
 
+import Review from './models/Review.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import itemRoutes from './routes/itemRoutes.js';
@@ -65,6 +66,17 @@ const start = async () => {
   try {
     assertAuthConfig();
     await connectDB();
+    // Reviews are no longer tied to a request: drop the old unique index and apply the new one.
+    try {
+      await Review.collection.dropIndex('request_1_fromUser_1');
+    } catch {
+      /* index already gone */
+    }
+    try {
+      await Review.syncIndexes();
+    } catch (e) {
+      console.warn('[reviews] index sync skipped:', e.message);
+    }
     server.listen(PORT, () => console.log(`Server listening on ${PORT}`));
   } catch (e) {
     console.error('Failed to start', e);

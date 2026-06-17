@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { getMe, getUser } from '../api/users.js';
 import { listByOwner, listMyItems } from '../api/items.js';
 import { receivedGratitude } from '../api/gratitude.js';
-import { receivedReviews, getReviewableRequest } from '../api/reviews.js';
+import { receivedReviews, createReview } from '../api/reviews.js';
 import { useAuth } from '../hooks/useAuth.js';
 import { useGeoLocation } from '../hooks/useLocation.js';
 import TrustRing from '../components/profile/TrustRing.jsx';
@@ -11,7 +12,9 @@ import Avatar from '../components/profile/Avatar.jsx';
 import ItemGrid from '../components/items/ItemGrid.jsx';
 import ThankYouCard from '../components/gratitude/ThankYouCard.jsx';
 import ReviewCard from '../components/profile/ReviewCard.jsx';
-import { StarDisplay } from '../components/profile/StarRating.jsx';
+import StarRating, { StarDisplay } from '../components/profile/StarRating.jsx';
+import Modal from '../components/common/Modal.jsx';
+import Button from '../components/common/Button.jsx';
 import Spinner from '../components/common/Spinner.jsx';
 
 export default function Profile({ self }) {
@@ -20,8 +23,12 @@ export default function Profile({ self }) {
   const [items, setItems] = useState([]);
   const [wall, setWall] = useState([]);
   const [reviews, setReviews] = useState([]);
-  const [reviewableId, setReviewableId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
+  const [isPublic, setIsPublic] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const { user: viewer } = useAuth();
   const { coords, detect } = useGeoLocation();
 
@@ -49,19 +56,6 @@ export default function Profile({ self }) {
         const [g, rev] = await Promise.all([receivedGratitude(gid), receivedReviews(gid)]);
         setWall(g.data.data?.gratitudes || []);
         setReviews(rev.data.data?.reviews || []);
-
-        // Offer a review only on someone else's profile, and only if we share an
-        // unreviewed completed exchange.
-        if (!self && viewer && String(viewer._id) !== String(gid)) {
-          try {
-            const { data: elig } = await getReviewableRequest(gid);
-            setReviewableId(elig.data?.requestId || null);
-          } catch {
-            setReviewableId(null);
-          }
-        } else {
-          setReviewableId(null);
-        }
       } catch {
         setUser(null);
       } finally {
@@ -69,7 +63,31 @@ export default function Profile({ self }) {
       }
     };
     run();
-  }, [id, self, coords, viewer]);
+  }, [id, self, coords]);
+
+  const canReview = !self && viewer && user && String(viewer._id) !== String(user._id);
+  const alreadyReviewed =
+    canReview && reviews.some((r) => String(r.fromUser?._id) === String(viewer._id));
+
+  const submitReview = async () => {
+    if (!rating) return toast.error('Please select a star rating');
+    setSubmitting(true);
+    try {
+      const { data } = await createReview({ toUserId: user._id, rating, comment, isPublic });
+      if (data.success) {
+        toast.success('Review submitted');
+        setReviewOpen(false);
+        setComment('');
+        setRating(0);
+        const rev = await receivedReviews(user._id);
+        setReviews(rev.data.data?.reviews || []);
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Could not submit review');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -100,13 +118,15 @@ export default function Profile({ self }) {
               </div>
             )}
             {user.bio && <p className="mt-2 max-w-xl text-ink/70">{user.bio}</p>}
-            {reviewableId && (
-              <Link
-                to={`/review/${reviewableId}`}
-                className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-ink shadow-sm transition hover:brightness-95"
+            {canReview && (
+              <button
+                type="button"
+                onClick={() => setReviewOpen(true)}
+                disabled={alreadyReviewed}
+                className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-ink shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                ⭐ Leave a review
-              </Link>
+                ⭐ {alreadyReviewed ? 'You reviewed this neighbor' : 'Leave a review'}
+              </button>
             )}
             <div className="mt-3 flex flex-wrap gap-2">
               {(user.badges || []).map((b) => (
@@ -158,6 +178,31 @@ export default function Profile({ self }) {
           </div>
         )}
       </section>
+
+      <Modal open={reviewOpen} title={`Rate ${user.name}`} onClose={() => setReviewOpen(false)}>
+        <p className="text-sm text-ink/70">How was your experience with this neighbor?</p>
+        <div className="my-4">
+          <StarRating value={rating} onChange={setRating} />
+        </div>
+        <textarea
+          className="min-h-[100px] w-full rounded-2xl border border-ink/10 px-4 py-3 text-sm"
+          placeholder="Share what went well (optional)"
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+        />
+        <label className="mt-3 flex items-center gap-2 text-sm text-ink/80">
+          <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} />
+          Show on their public profile
+        </label>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setReviewOpen(false)}>
+            Cancel
+          </Button>
+          <Button variant="primary" onClick={submitReview} disabled={submitting}>
+            {submitting ? 'Submitting…' : 'Submit review'}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

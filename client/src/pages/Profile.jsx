@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { getMe, getUser } from '../api/users.js';
 import { listByOwner, listMyItems } from '../api/items.js';
 import { receivedGratitude } from '../api/gratitude.js';
-import { receivedReviews } from '../api/reviews.js';
+import { receivedReviews, getReviewableRequest } from '../api/reviews.js';
+import { useAuth } from '../hooks/useAuth.js';
 import { useGeoLocation } from '../hooks/useLocation.js';
 import TrustRing from '../components/profile/TrustRing.jsx';
 import Avatar from '../components/profile/Avatar.jsx';
@@ -19,7 +20,9 @@ export default function Profile({ self }) {
   const [items, setItems] = useState([]);
   const [wall, setWall] = useState([]);
   const [reviews, setReviews] = useState([]);
+  const [reviewableId, setReviewableId] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { user: viewer } = useAuth();
   const { coords, detect } = useGeoLocation();
 
   useEffect(() => {
@@ -46,6 +49,19 @@ export default function Profile({ self }) {
         const [g, rev] = await Promise.all([receivedGratitude(gid), receivedReviews(gid)]);
         setWall(g.data.data?.gratitudes || []);
         setReviews(rev.data.data?.reviews || []);
+
+        // Offer a review only on someone else's profile, and only if we share an
+        // unreviewed completed exchange.
+        if (!self && viewer && String(viewer._id) !== String(gid)) {
+          try {
+            const { data: elig } = await getReviewableRequest(gid);
+            setReviewableId(elig.data?.requestId || null);
+          } catch {
+            setReviewableId(null);
+          }
+        } else {
+          setReviewableId(null);
+        }
       } catch {
         setUser(null);
       } finally {
@@ -53,7 +69,7 @@ export default function Profile({ self }) {
       }
     };
     run();
-  }, [id, self, coords]);
+  }, [id, self, coords, viewer]);
 
   if (loading) {
     return (
@@ -84,6 +100,14 @@ export default function Profile({ self }) {
               </div>
             )}
             {user.bio && <p className="mt-2 max-w-xl text-ink/70">{user.bio}</p>}
+            {reviewableId && (
+              <Link
+                to={`/review/${reviewableId}`}
+                className="mt-3 inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-ink shadow-sm transition hover:brightness-95"
+              >
+                ⭐ Leave a review
+              </Link>
+            )}
             <div className="mt-3 flex flex-wrap gap-2">
               {(user.badges || []).map((b) => (
                 <span

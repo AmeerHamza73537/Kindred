@@ -11,15 +11,13 @@ const BADGE_DEFS = [
   },
 ];
 
+/**
+ * Trust ring fills 10% per successful lend/gift, completing at 10 exchanges.
+ * Both parties of an exchange earn credit via `successfulHandoffs`.
+ */
 export function calcTrustScore(user) {
   const handoffs = user.successfulHandoffs || 0;
-  const votes = user.helpfulnessVotes || 0;
-  const shared = user.itemsShared || 0;
-  const ratingAvg = user.ratingAverage || 0;
-  const ratingCount = user.ratingCount || 0;
-  const ratingBonus = Math.round(ratingAvg * Math.min(ratingCount, 10) * 2);
-  const raw = handoffs * 20 + votes * 10 + shared * 5 + ratingBonus;
-  return Math.min(100, Math.max(0, raw));
+  return Math.min(100, Math.max(0, handoffs * 10));
 }
 
 export function getTrustLabel(score) {

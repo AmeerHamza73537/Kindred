@@ -5,7 +5,6 @@ export function trustLabelFromScore(score) {
 }
 
 export function trustColor(score) {
-  if (score >= 75) return '#2D6A4F';
-  if (score >= 45) return '#F4A261';
-  return '#94a3b8';
+  // Gold once the ring is complete (10 exchanges); green while it fills.
+  return score >= 100 ? '#EAB308' : '#2D6A4F';
 }

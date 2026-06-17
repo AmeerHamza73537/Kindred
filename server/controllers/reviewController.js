@@ -95,6 +95,36 @@ export const received = async (req, res, next) => {
   }
 };
 
+/** Find a completed exchange between the viewer and :userId that the viewer hasn't reviewed yet. */
+export const reviewable = async (req, res, next) => {
+  try {
+    const me = req.user._id;
+    const other = req.params.userId;
+    if (String(me) === String(other)) {
+      return res.json({ success: true, message: 'OK', data: { requestId: null } });
+    }
+    const requests = await Request.find({
+      status: 'completed',
+      $or: [
+        { owner: me, borrower: other },
+        { owner: other, borrower: me },
+      ],
+    })
+      .sort({ updatedAt: -1 })
+      .select('_id');
+
+    for (const r of requests) {
+      const existing = await Review.findOne({ request: r._id, fromUser: me });
+      if (!existing) {
+        return res.json({ success: true, message: 'OK', data: { requestId: r._id } });
+      }
+    }
+    res.json({ success: true, message: 'OK', data: { requestId: null } });
+  } catch (e) {
+    next(e);
+  }
+};
+
 export const forRequest = async (req, res, next) => {
   try {
     const request = await Request.findById(req.params.requestId);

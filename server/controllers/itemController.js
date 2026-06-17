@@ -62,41 +62,50 @@ export const listItems = async (req, res, next) => {
     const radius = Number(req.query.radius) || 5;
     const category = req.query.category;
     const type = req.query.type;
-    const status = req.query.status || 'available';
+
+    // "mine" scopes to the logged-in user; an explicit "owner" id scopes to a profile.
+    const mine = req.query.mine === 'true' || req.query.mine === true;
+    const ownerId = mine && req.user ? String(req.user._id) : req.query.owner;
+    // Owner-scoped views show every status; public browsing defaults to available only.
+    const status = req.query.status || (ownerId ? null : 'available');
 
     const filter = {};
     if (category) filter.category = category;
     if (type) filter.type = type;
     if (status) filter.status = status;
-    if (req.query.owner) {
-      filter.owner = req.query.owner;
-    }
+    if (ownerId) filter.owner = ownerId;
+
+    const withOwner = (q) => q.populate('owner', 'name avatar trustScore location');
 
     let items;
-    if (!Number.isNaN(lat) && !Number.isNaN(lng)) {
+    if (!Number.isNaN(lat) && !Number.isNaN(lng) && !ownerId) {
       const maxDistance = milesToMeters(radius);
-      items = await Item.find({
-        ...filter,
-        location: {
-          $near: {
-            $geometry: { type: 'Point', coordinates: [lng, lat] },
-            $maxDistance: maxDistance,
+      items = await withOwner(
+        Item.find({
+          ...filter,
+          location: {
+            $near: {
+              $geometry: { type: 'Point', coordinates: [lng, lat] },
+              $maxDistance: maxDistance,
+            },
           },
-        },
-      })
-        .populate('owner', 'name avatar trustScore location')
+        })
+      )
         .limit(60)
         .lean();
+
+      // Nothing within the radius (e.g. items listed elsewhere) — fall back to recent
+      // listings so Explore is never empty.
+      if (!items.length) {
+        items = await withOwner(Item.find(filter)).sort({ createdAt: -1 }).limit(60).lean();
+      }
+
       items = items.map((it) => ({
         ...it,
         distanceMiles: distanceMiles([lng, lat], it.location?.coordinates),
       }));
     } else {
-      items = await Item.find(filter)
-        .populate('owner', 'name avatar trustScore location')
-        .sort({ createdAt: -1 })
-        .limit(60)
-        .lean();
+      items = await withOwner(Item.find(filter)).sort({ createdAt: -1 }).limit(60).lean();
     }
     res.json({ success: true, message: 'OK', data: { items } });
   } catch (e) {
